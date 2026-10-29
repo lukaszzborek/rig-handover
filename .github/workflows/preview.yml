@@ -1,0 +1,36 @@
+# Publishes a preview to GitHub Pages without committing it (ADR 0003): the page comes in as an
+# input, so it never lands in git history and the next run uploads over the same link.
+name: preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      html_b64:
+        description: The preview page, one HTML file, base64
+        required: true
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Write page
+        env:
+          HTML_B64: ${{ inputs.html_b64 }}
+        run: mkdir site && echo "$HTML_B64" | base64 -d > site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+          retention-days: 1
+      - id: deploy
+        uses: actions/deploy-pages@v4
